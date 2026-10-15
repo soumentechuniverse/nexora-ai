@@ -1,28 +1,34 @@
-# Nexora AI — free AI Tutor setup
+# Nexora AI — secure AI Tutor setup
 
-The public website is hosted on GitHub Pages. GitHub Pages is static hosting, so **do not put a private API key in `index.html`**. This repository includes a Cloudflare Worker backend that uses a Workers AI binding; it does not require exposing a provider key in the browser.
+Nexora's public website is hosted on GitHub Pages. GitHub Pages is static hosting, so **never put private API keys, passwords, or provider secrets in `index.html`**. The Worker backend calls Cloudflare Workers AI through a server-side binding.
 
 ## 1. Create the Worker
 1. Sign in to Cloudflare and open **Workers & Pages**.
 2. Choose **Create → Worker**, name it `nexora-ai-tutor`, and deploy the starter Worker.
-3. Open the Worker, select **Edit code**, replace the starter code with the complete contents of `worker/nexora-ai-worker.js`, then deploy.
-4. In the Worker settings, open **Bindings → Add → Workers AI**. Set the variable/binding name to exactly `AI`, save, and redeploy if requested.
+3. Open the Worker, select **Edit code**, replace the starter code with the complete contents of [worker/nexora-ai-worker.js](worker/nexora-ai-worker.js), and deploy.
+4. In Worker settings, open **Bindings → Add → Workers AI**. Set the binding name to exactly `AI`, save, and deploy again if requested.
 5. Copy the Worker URL, for example `https://nexora-ai-tutor.YOUR-SUBDOMAIN.workers.dev`.
 
 ## 2. Connect the website
-1. In this repository, open `index.html` and find `const NEXORA_AI_ENDPOINT = "";`.
-2. Replace the empty string with your actual Worker URL plus `/chat` only if you configured a route that includes it. For the code supplied here, use the Worker URL itself, e.g. `const NEXORA_AI_ENDPOINT = "https://nexora-ai-tutor.YOUR-SUBDOMAIN.workers.dev";`.
-3. Save the file to the `main` branch. Wait for GitHub Pages to publish, then open the site and test with “Explain what RAM does”.
+1. In `index.html`, find `const NEXORA_AI_ENDPOINT = "";`.
+2. Replace the empty string with the Worker URL, e.g. `const NEXORA_AI_ENDPOINT = "https://nexora-ai-tutor.YOUR-SUBDOMAIN.workers.dev";`.
+3. Commit to `main`, wait for GitHub Pages to publish, and test the Tutor with “Explain what RAM does”.
 
-## 3. Important notes
-- Cloudflare's free allowance and model availability can change; check the limits shown in your Cloudflare dashboard.
-- The Worker validates the origin, message size, and request format, and sends only a short recent conversation history.
-- The origin check is a basic browser-origin safeguard, **not authentication or a complete abuse-prevention system**. Do not treat it as a substitute for rate limiting if the endpoint is widely shared.
-- Do not send passwords, OTPs, payment data, or private information to the tutor.
-- If the AI binding or allowance is unavailable, the website should show an error and keep the chat history locally.
-- The Worker is deployed separately from GitHub Pages. Committing this file does not deploy it to Cloudflare automatically.
+## 3. Security checklist (important)
+- **Do not promise that any website is impossible to hack.** Security is risk reduction and ongoing maintenance, not a guarantee.
+- The Worker accepts browser requests only from `https://soumentechuniverse.github.io`, checks JSON/content type and request size, caps message/history length, avoids exposing internal errors, sends no-store responses, and has a small in-memory request throttle.
+- **Origin/CORS checks are not authentication**: non-browser clients can forge an Origin header. The in-memory throttle is best-effort and can reset or vary between Worker instances.
+- For stronger protection, open Cloudflare **Security → WAF → Rate limiting rules** (menu names may vary) and create a rule scoped to the Worker hostname/path. Start with a conservative per-IP limit (for example 20 POST requests per 10 minutes), then adjust based on real use and Cloudflare's plan/features. Enable available managed protections and review security events.
+- If abuse becomes a concern, add a server-verified Cloudflare Turnstile challenge or durable, shared rate limiting before allowing broad public use. Do not rely on a hidden frontend URL as a secret.
+- Keep the GitHub repository free of API keys, tokens, passwords, and personal data. If a secret is ever committed, remove it **and rotate/revoke it immediately**; deleting the line alone is not enough.
+- Keep GitHub account two-factor authentication enabled; review repository collaborators and GitHub Actions permissions; never share login codes.
+- Keep the Worker and dependencies updated, review Cloudflare logs/usage, and set usage/billing alerts or limits where the account supports them.
+- Do not send passwords, OTPs, payment data, or private information to the AI Tutor.
+- GitHub Pages serves HTTPS, but repository code is public. Anything placed in frontend HTML/JavaScript is visible to visitors.
 
-## Troubleshooting
+## 4. Troubleshooting
+- **403 Forbidden:** check that the website is opened from `https://soumentechuniverse.github.io/nexora-ai/` and that the Worker `ALLOWED_ORIGIN` matches the site origin exactly.
 - **503 binding not configured:** create the Workers AI binding named `AI`.
-- **AI temporarily unavailable:** check the Cloudflare Worker logs, model availability, and your account's current Workers AI limits.
-- **CORS error:** the website origin in the Worker is set to `https://soumentechuniverse.github.io`. If the site moves to a custom domain, update `ALLOWED_ORIGIN` in the Worker.
+- **429 too many requests:** wait and retry; configure Cloudflare edge rate limiting for stronger protection.
+- **502 AI unavailable:** check Worker logs, model availability, and current Workers AI limits.
+- The Worker deploys separately from GitHub Pages. Committing the Worker file to GitHub does **not** automatically deploy it to Cloudflare.
